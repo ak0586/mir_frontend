@@ -5,6 +5,9 @@ A new Flutter project.
 This is the **Flutter's frontend** for the Math Search Engine project. It allows users to input LaTeX or mathematical expressions, submit search queries, and view HTML+MathML documents. This frontend works seamlessly on **Android APK** and **Web browsers**.
 
 ---
+## download android app to install and search some latex queries
+build\app\outputs\flutter-apk\app-release.apk (21.0MB)
+
 
 ## ✨ Features
 
