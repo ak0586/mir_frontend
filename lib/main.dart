@@ -4,10 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'dart:io' show Platform;
-import 'mobile_html_viewer.dart';
-import 'web_html_viewer.dart';
+import 'html_viewer.dart';
 
 void main() {
   runApp(MathSearchApp());
@@ -44,6 +43,7 @@ class _SearchHomePageState extends State<SearchHomePage>
   bool isLoading = false;
   bool hasSearched = false;
   double timeTaken = 0.0;
+  String? currentSessionId; // Store the current session ID
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -62,11 +62,19 @@ class _SearchHomePageState extends State<SearchHomePage>
 
   String getBaseUrl() {
     if (kIsWeb) {
-      return 'http://127.0.0.1:8000'; // Web
+      return 'https://b432dd400cc5.ngrok-free.app'; // Web
     } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000'; // Android Emulator
+      if (kDebugMode) {
+        // Check if running on emulator or actual device
+        // return 'http://10.0.2.2:8000'; // Android Emulator (for development)
+        // For actual Android device, use your computer's IP address:
+        return 'https://b432dd400cc5.ngrok-free.app'; // Replace with your computer's actual IP
+      } else {
+        // Production - use your server's IP or domain
+        return 'https://b432dd400cc5.ngrok-free.app'; // Replace with actual server IP
+      }
     } else {
-      return 'http://127.0.0.1:8000'; // iOS Simulator or Desktop
+      return 'https://b432dd400cc5.ngrok-free.app'; // iOS Simulator or Desktop
     }
   }
 
@@ -75,6 +83,10 @@ class _SearchHomePageState extends State<SearchHomePage>
     _animationController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
+    // Clean up session when disposing
+    if (currentSessionId != null) {
+      _cleanupSession(currentSessionId!);
+    }
     super.dispose();
   }
 
@@ -105,6 +117,12 @@ class _SearchHomePageState extends State<SearchHomePage>
       hasSearched = false;
     });
 
+    // Clean up previous session if exists
+    if (currentSessionId != null) {
+      await _cleanupSession(currentSessionId!);
+      currentSessionId = null;
+    }
+
     try {
       // Convert the user's normal LaTeX query to JSON-compatible format
       String jsonCompatibleQuery = convertLatexToJsonCompatible(
@@ -120,6 +138,7 @@ class _SearchHomePageState extends State<SearchHomePage>
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
+          currentSessionId = data['session_id']; // Store session ID
           timeTaken = data['time_taken_in_second'];
           searchResults = (data['results'] as List)
               .map((item) => SearchResult.fromJson(item))
@@ -146,6 +165,15 @@ class _SearchHomePageState extends State<SearchHomePage>
     }
   }
 
+  Future<void> _cleanupSession(String sessionId) async {
+    try {
+      await http.delete(Uri.parse('$baseUrl/session/$sessionId'));
+    } catch (e) {
+      // Silently handle cleanup errors
+      print('Session cleanup error: $e');
+    }
+  }
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -158,20 +186,20 @@ class _SearchHomePageState extends State<SearchHomePage>
   }
 
   void openFile(String fileId, String filename) {
+    if (currentSessionId == null) {
+      _showSnackBar('Session expired. Please search again.', Colors.red);
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => kIsWeb
-            ? WebFileViewerPage(
-                fileId: fileId,
-                filename: filename,
-                baseUrl: baseUrl,
-              )
-            : FileViewerPage(
-                fileId: fileId,
-                filename: filename,
-                baseUrl: baseUrl,
-              ),
+        builder: (context) => FileViewerPage(
+          sessionId: currentSessionId!, // Pass session ID instead of fileId
+          fileId: fileId, // Pass file ID
+          filename: filename,
+          baseUrl: baseUrl,
+        ),
       ),
     );
   }
