@@ -1,16 +1,19 @@
 // web_html_viewer.dart
-// Web-specific HTML viewer with proper MathML and HTML rendering
+// Web-specific HTML viewer with modern web APIs
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 import 'dart:ui_web' as ui_web;
+import 'dart:js_interop' as js;
 
-class WebFileViewerPage extends StatefulWidget {
+class FileViewerPage extends StatefulWidget {
+  final String sessionId;
   final String fileId;
   final String filename;
   final String baseUrl;
 
-  const WebFileViewerPage({
+  const FileViewerPage({
+    required this.sessionId,
     required this.fileId,
     required this.filename,
     required this.baseUrl,
@@ -18,10 +21,10 @@ class WebFileViewerPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _WebFileViewerPageState createState() => _WebFileViewerPageState();
+  _FileViewerPageState createState() => _FileViewerPageState();
 }
 
-class _WebFileViewerPageState extends State<WebFileViewerPage> {
+class _FileViewerPageState extends State<FileViewerPage> {
   bool isLoading = true;
   bool hasError = false;
   late String viewId;
@@ -42,19 +45,21 @@ class _WebFileViewerPageState extends State<WebFileViewerPage> {
 
     try {
       final response = await http.get(
-        Uri.parse('${widget.baseUrl}/view/${widget.fileId}'),
+        Uri.parse(
+          '${widget.baseUrl}/view/${widget.sessionId}/${widget.fileId}',
+        ),
       );
 
       if (response.statusCode == 200) {
         // Create enhanced HTML with better MathML support for web
         final enhancedHtml = _createEnhancedHtml(response.body);
 
-        // Create iframe element
-        final iframeElement = html.IFrameElement()
+        // Create iframe element using modern web API
+        final iframeElement = web.HTMLIFrameElement()
           ..style.width = '100%'
           ..style.height = '100%'
           ..style.border = 'none'
-          ..srcdoc = enhancedHtml;
+          ..srcdoc = enhancedHtml.toJS;
 
         // Register the iframe element
         ui_web.platformViewRegistry.registerViewFactory(

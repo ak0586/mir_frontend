@@ -1,4 +1,4 @@
-// html_viewer.dart
+// mobile_html_viewer.dart
 // This file is part of the MIR Frontend project.
 // It is responsible for displaying HTML content in a WebView or using Flutter HTML package.
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -8,11 +8,13 @@ import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 
 class FileViewerPage extends StatefulWidget {
+  final String sessionId;
   final String fileId;
   final String filename;
   final String baseUrl;
 
   const FileViewerPage({
+    required this.sessionId,
     required this.fileId,
     required this.filename,
     required this.baseUrl,
@@ -51,7 +53,9 @@ class _FileViewerPageState extends State<FileViewerPage> {
   Future<void> loadFile() async {
     try {
       final response = await http.get(
-        Uri.parse('${widget.baseUrl}/view/${widget.fileId}'),
+        Uri.parse(
+          '${widget.baseUrl}/view/${widget.sessionId}/${widget.fileId}',
+        ),
       );
 
       if (response.statusCode == 200) {
